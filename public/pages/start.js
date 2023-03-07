@@ -48,6 +48,14 @@ export default async function RenderStartPage(data) {
             await HTTPRequest("/login", "DELETE", { email });
             redirectTo("/");
         };
+
+        const registerButton = createElement("button", "pageButtons");
+        registerButton.innerText = "cadastro";
+        registerButton.onclick = () => {
+            redirectTo("/register");
+        };
+
+        container.appendChild(registerButton);
     } else {
         loginButton.innerText = "login";
         loginButton.onclick = () => {

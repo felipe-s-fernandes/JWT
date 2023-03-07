@@ -1,5 +1,6 @@
 import jwtLib from "jsonwebtoken";
-import usersDB from "../database/database.js";
+import bcrypt from "bcrypt";
+import fs from "fs";
 
 const TAG = "Login controller: ";
 
@@ -15,9 +16,15 @@ const getuserData = async (req, res) => {
         error: null,
     };
 
-    //Mock service and database
+    //Repo
+    //Get all users
+    const usersDB = JSON.parse(
+        fs.readFileSync("src/database/users.json", "utf8")
+    );
     const userData = usersDB.filter((db) => email === db.email);
 
+    //Service
+    //Verify if user exists
     if (userData.length <= 0) {
         response.message = "User is not registered";
         response.error = "Not found";
@@ -39,11 +46,6 @@ const getuserData = async (req, res) => {
 const createSession = async (req, res) => {
     console.log(TAG, "createSession()");
 
-    const user = {
-        email: req.body.email,
-        password: req.body.password,
-    };
-
     //Standardize response
     const response = {
         message: null,
@@ -51,12 +53,35 @@ const createSession = async (req, res) => {
         error: null,
     };
 
-    //Mock service and database
-    const userData = usersDB.filter(
-        (db) => user.email === db.email && user.password === db.password
+    const user = {
+        email: req.body.email,
+        password: req.body.password,
+    };
+
+    //Repo
+    //Get all users
+    const usersDB = JSON.parse(
+        fs.readFileSync("src/database/users.json", "utf8")
     );
 
-    if (userData.length <= 0) {
+    //Service
+    //Verify if user exists
+    let found = false;
+    usersDB.forEach((db) => {
+        if (user.email === db.email) {
+            found = true;
+        }
+    });
+    if (!found) {
+        response.message = `Invalid credentials`;
+        response.error = `Unauthorized`;
+        res.status(400).json(response);
+        return;
+    }
+
+    //Service
+    //Check if submitted password matches db hash
+    if (!(await checkUser(user, usersDB))) {
         response.message = "Invalid credentials";
         response.data = false;
         response.error = "Unauthorized";
@@ -92,6 +117,18 @@ const deleteSession = async (req, res) => {
     response.data = true;
     res.status(200).json(response);
 };
+
+async function checkUser(user, usersDB) {
+    try {
+        const plainTextPassword = user.password;
+        const dbEntry = usersDB.find((db) => db.email === user.email);
+        const result = bcrypt.compare(plainTextPassword, dbEntry.password);
+        return result;
+    } catch (error) {
+        console.log(TAG, "error caught");
+        throw error;
+    }
+}
 
 const loginController = {
     getuserData: getuserData,
